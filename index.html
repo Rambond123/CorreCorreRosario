@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Corre Corre Rosário</title>
 <meta name="theme-color" content="#0e2c24">
 <meta name="mobile-web-app-capable" content="yes">
@@ -24,6 +24,9 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;overflow:hidden;background:#0e2c24;}
+  /* altura real da janela no celular (desconta a barra do navegador) */
+  body{height:100svh;height:100dvh;}
+  body:fullscreen, body:-webkit-full-screen{height:100%;}
   body{
     font-family:'Nunito','Trebuchet MS',sans-serif;
     display:flex;align-items:center;justify-content:center;
@@ -37,6 +40,7 @@
     box-shadow:0 30px 80px rgba(0,0,0,.45);
     border-radius:18px;overflow:hidden;
   }
+  @media (max-width:1024px), (max-height:620px){ #wrap{max-width:none;max-height:none;border-radius:0;box-shadow:none;} }
   canvas{display:block;width:100%;height:100%;}
   #rotateHint{ display:none; position:fixed; inset:0; z-index:50; background:#0e2c24; color:#fff;
     font-family:'Baloo 2','Arial Rounded MT Bold','Trebuchet MS',sans-serif; font-size:52px; text-align:center;
@@ -523,12 +527,7 @@
   joyBase.addEventListener('pointercancel', joyEnd);
 
   document.getElementById('startBtn').addEventListener('click', openPicker);
-  document.getElementById('fsBtn').addEventListener('click', ()=>{
-    const el = document.documentElement;
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if(req){ try{ req.call(el).catch?.(()=>{}); }catch(e){} }
-    try{ screen.orientation && screen.orientation.lock && screen.orientation.lock('landscape').catch(()=>{}); }catch(e){}
-  });
+  document.getElementById('fsBtn').addEventListener('click', goFullscreen);
   document.getElementById('retryBtn').addEventListener('click', ()=>{ if(phase===2) startPhase2(); else openPicker(); });
   document.getElementById('winBtn').addEventListener('click', openPicker);
   document.getElementById('interBtn').addEventListener('click', startPhase2);
@@ -551,7 +550,17 @@
   window.addEventListener('keydown', e=>{
     if(e.code==='KeyP' || e.code==='Escape'){ e.preventDefault(); if(gameState==='paused') resumeGame(); else pauseGame(); }
   });
+  function goFullscreen(){
+    if(document.fullscreenElement || document.webkitFullscreenElement) return;
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if(req){ try{ const pr = req.call(el, {navigationUI:'hide'}); if(pr && pr.catch) pr.catch(()=>{}); }catch(e){} }
+    try{ if(screen.orientation && screen.orientation.lock){ screen.orientation.lock('landscape').catch(()=>{}); } }catch(e){}
+  }
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  ['fullscreenchange','webkitfullscreenchange','orientationchange'].forEach(ev => document.addEventListener(ev, ()=>{ setTimeout(resize, 50); setTimeout(resize, 400); }));
   function openPicker(){
+    if(isTouch) goFullscreen();
     gameState = 'pick';
     hideOverlays();
     document.getElementById('pickScreen').classList.remove('hidden');
