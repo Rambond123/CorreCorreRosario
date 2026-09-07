@@ -2222,7 +2222,7 @@
     const im = sprites[frog.char];
     if(im){
       const o = { moving: frog.moving!==false && !frog.crouch, onGround: frog.onGround, wave: frog.wave>0, crouch: frog.crouch, t: t };
-      drawSprite(ctx, im, spriteFrame(o), frog.x, frog.y, frog.h*1.12, (frog.face||1) < 0);
+      drawSprite(ctx, im, spriteFrame(o), frog.x, frog.y, frog.h*1.22, (frog.face||1) < 0);
       return;
     }
     ctx.save();

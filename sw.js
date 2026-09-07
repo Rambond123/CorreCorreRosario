@@ -1,7 +1,7 @@
 // Service worker: guarda o jogo em cache para abrir offline.
 // Ao publicar uma versão nova, mude o CACHE abaixo para o cache antigo ser descartado.
-const CACHE = 'ccr-v0.7';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
+const CACHE = 'ccr-v0.8';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './sprites/vito.png', './sprites/maria.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
