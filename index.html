@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.11</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.12</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -312,6 +312,7 @@
     frog.vx = 0; frog.face = 1;        // direção encarada (1=dir, -1=esq)
     frog.hearts = 5;                   // vidas (corações)
     frog.wave = 0; frog.enter = 0; frog.moving = true; frog.invuln = 0; frog.crouch = false;
+    frog.shield = 0; frog.fast = 0;   // power-ups: bolha de chiclete e guaraná
     enemies = [];                      // inimigos do modo Contra
     points = 0; floatTxt = null;
     obstacles = [];
@@ -322,7 +323,7 @@
     drones = [];
     if(!keepRoute) route = 'street';   // 'street' (rua), 'sewer' (esgoto) ou 'sky' (céu)
     keepRoute = false;
-    manhole = (route==='street') ? { wx: 1700, w: 110, open: true } : null;
+    manhole = (route==='street') ? { wx: 1350 + Math.round(Math.random()*800), w: 110, open: true } : null;
     sewerBossDone = false; skyBossDone = false;
     frog.support = GROUND;
     t = 0; runFrames = 0;
@@ -335,9 +336,16 @@
     updateHearts();
   }
   // posiciona inimigos ao longo da fase conforme o cenário (coords de mundo)
+  // posições aleatórias com espaçamento mínimo, entre x0 e x1
+  function randSpots(x0, x1, minGap, maxGap){
+    const out = []; let x = x0 + Math.random()*minGap*0.5;
+    while(x < x1){ out.push(Math.round(x)); x += minGap + Math.random()*(maxGap-minGap); }
+    return out;
+  }
   function spawnLevelEnemies(){
     enemies = [];
-    const spots = [700, 1100, 1500, 2050, 2400, 2750, 3100, 3400, 3700];
+    // 6 a 9 inimigos por fase, em lugares novos a cada partida (longe do início e da arena do chefão)
+    const spots = randSpots(620, 3350, 300, 520);
     for(const wx of spots){
       if(route==='sewer'){
         const kinds = ['barata','rato','aranha'];
@@ -360,27 +368,33 @@
                        move:true, dir:-1, vx: (k==='patinete'?1.8:1.2)+Math.random()*0.4, anchor:wx, range:140, hurt:0 });
       }
     }
-    // obstáculos parados da rua (desviar/pular): lata, banco, banca
+    // obstáculos parados da rua (desviar/pular): lata, banco, banca — sorteados, evitando o bueiro
     obstacles = [];
     if(route==='street'){
-      const obsSpots = [[900,'banco'],[1300,'lata'],[1900,'banca'],[2250,'lata'],[2900,'banco'],[3250,'banca'],[3550,'lata']];
       const od = { lata:[41,58], banco:[101,41], banca:[115,67] };
-      for(const [wx,k] of obsSpots){ obstacles.push({ wx, w:od[k][0], h:od[k][1], kindS:k }); }
+      const names = Object.keys(od);
+      for(const wx of randSpots(820, 3500, 340, 620)){
+        if(manhole && Math.abs(wx - manhole.wx) < 180) continue;          // não tampa o bueiro
+        if(enemies.some(e => Math.abs(e.anchor - wx) < 70)) continue;     // só não nasce DENTRO de um inimigo
+        const k = names[(Math.random()*names.length)|0];
+        obstacles.push({ wx, w:od[k][0], h:od[k][1], kindS:k });
+      }
     }
-    // inimigo aéreo por cenário: drone (rua), morcego (esgoto), fadinha (céu)
+    // inimigo aéreo por cenário: drone (rua), morcego (esgoto), fadinha (céu) — 3 ou 4, sorteados
     drones = [];
-    const aerialSpots = (route==='street') ? [1250,2150,3050,3650]
-                       : (route==='sewer')  ? [1400,2500,3300]
-                       : (route==='sky')    ? [1400,2500,3300] : [];
+    const aerialSpots = randSpots(1150, 3600, 620, 1000);
     for(const dwx of aerialSpots){
       drones.push({ wx:dwx, y:GROUND-78, w:70, h:26, bob:Math.random()*6, dir:-1, vx:2.4,
                     anchor:dwx, range:260,
                     bat: route==='sewer', fairy: route==='sky', lilac: Math.random()<0.5 });
     }
-    // power-up pipoca (tiro duplo): no alto, exige pulo
+    // power-ups no alto (exigem pulo), sorteados em lugar e em tipo:
+    // pipoca (tiro duplo), guaraná (velocidade), bolha de chiclete (escudo) e coração (vida extra, raro)
     powerups = [];
-    for(const pwx of [1000, 2300, 3300]){
-      powerups.push({ wx:pwx, y:GROUND-(110+Math.random()*16), bob:Math.random()*Math.PI*2, taken:false });
+    for(const pwx of randSpots(950, 3400, 560, 950)){
+      const r = Math.random();
+      const kind = r < 0.38 ? 'pipoca' : r < 0.62 ? 'guarana' : r < 0.86 ? 'chiclete' : 'coracao';
+      powerups.push({ wx:pwx, y:GROUND-(110+Math.random()*16), bob:Math.random()*Math.PI*2, taken:false, kind });
     }
   }
   function recalcScore(){ score = Math.floor(points/LEVEL_W*GOAL) + bonus; }
@@ -686,7 +700,8 @@
   function updateBoss(){
     t++;
     if(shootHold) shoot();
-    const WALK = 4.2;
+    const WALK = 4.2 * (frog.fast > 0 ? 1.45 : 1);
+    if(frog.fast > 0) frog.fast--;
     // movimento livre da criança (agachado = parado)
     let mv = 0;
     if(!frog.crouch){
@@ -1268,7 +1283,8 @@
   function update(){
     t++;
     if(shootHold) shoot();
-    const WALK = 4.2;
+    const WALK = 4.2 * (frog.fast > 0 ? 1.45 : 1);
+    if(frog.fast > 0) frog.fast--;
     // ---- movimento horizontal livre (agachado = parado) ----
     let mv = 0;
     if(!frog.crouch){
@@ -1460,9 +1476,24 @@
       if(!pu.taken){
         const dx = frog.x - pu.wx, dy = (frog.y - frog.h*0.5) - pu.y;
         if(Math.abs(dx) < 42 && Math.abs(dy) < 52){
-          pu.taken = true; twin = 360;
-          floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'TIRO DUPLO!' };
-          burst(pu.wx, pu.y, 18, '#ffd24a');
+          pu.taken = true;
+          if(pu.kind === 'guarana'){
+            frog.fast = 420;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'GUARANÁ! ⚡' };
+            burst(pu.wx, pu.y, 18, '#4fd06a');
+          } else if(pu.kind === 'chiclete'){
+            frog.shield = 1;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'BOLHA DE CHICLETE!' };
+            burst(pu.wx, pu.y, 18, '#ff9ad5');
+          } else if(pu.kind === 'coracao'){
+            if(frog.hearts < 5){ frog.hearts++; updateHearts(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: '+1 ❤️' }; }
+            else { bonus += 25; recalcScore(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'CHEIO! +25 pts' }; }
+            burst(pu.wx, pu.y, 18, '#ff6a7a');
+          } else {
+            twin = 360;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'TIRO DUPLO!' };
+            burst(pu.wx, pu.y, 18, '#ffd24a');
+          }
         }
       }
     }
@@ -1475,6 +1506,13 @@
 
   function hurtPlayer(){
     if(frog.invuln > 0) return;
+    if(frog.shield > 0){
+      frog.shield = 0; frog.invuln = 70;
+      burst(frog.x, frog.y - frog.h*0.5, 20, '#ff9ad5');
+      floatTxt = { x: frog.x, y: frog.y - frog.h - 6, t: 60, txt: 'A BOLHA ESTOUROU!' };
+      try{ if(navigator.vibrate) navigator.vibrate(30); }catch(e){}
+      return;
+    }
     frog.hearts--;
     frog.invuln = 80;
     try{ if(navigator.vibrate) navigator.vibrate(frog.hearts<=0 ? [80,40,120] : 60); }catch(e){}
@@ -1572,12 +1610,21 @@
 
     let fa = 1 - (frog.enter||0);
     if(frog.invuln>0 && Math.floor(t/6)%2===0) fa *= 0.55;   // pisca suave só enquanto invencível (após dano)
-    if(twin>0){
-      // power-up ativo: aura dourada nos pés em vez de piscar
+    if(twin > 0 || frog.fast > 0){
+      // power-up ativo: aura nos pés (dourada = tiro duplo, verde = guaraná)
       const surf = (frog.support!=null ? frog.support : GROUND);
       const pulse = 0.5 + 0.5*Math.sin(t*0.25);
-      ctx.fillStyle = 'rgba(255,210,74,'+(0.22+0.18*pulse)+')';
+      ctx.fillStyle = (frog.fast > 0 && twin <= 0)
+        ? 'rgba(79,208,106,'+(0.22+0.18*pulse)+')'
+        : 'rgba(255,210,74,'+(0.22+0.18*pulse)+')';
       ctx.beginPath(); ctx.ellipse(frog.x, surf+4, frog.w*0.9+6*pulse, 9+3*pulse, 0, 0, Math.PI*2); ctx.fill();
+    }
+    if(frog.shield > 0){
+      // bolha de chiclete envolvendo a criança
+      ctx.strokeStyle = 'rgba(255,154,213,.75)'; ctx.lineWidth = 3;
+      ctx.fillStyle = 'rgba(255,154,213,.12)';
+      ctx.beginPath(); ctx.ellipse(frog.x, frog.y - frog.h*0.5, frog.w*0.95, frog.h*0.68 + Math.sin(t*0.2)*2, 0, 0, Math.PI*2);
+      ctx.fill(); ctx.stroke();
     }
     ctx.globalAlpha = fa;
     drawFrog();
@@ -1592,13 +1639,18 @@
     }
     ctx.restore();
 
-    if(typeof twin==='number' && twin > 0 && gameState==='play'){
-      const secs = Math.ceil(twin/60);
-      ctx.fillStyle = 'rgba(36,58,99,.85)';
-      roundRect(W/2-58, 96, 116, 24, 8); ctx.fill();
-      ctx.fillStyle = '#ffd24a';
-      ctx.font = "bold 14px 'Baloo 2', sans-serif"; ctx.textAlign='center';
-      ctx.fillText('🧱 TIRO DUPLO '+secs+'s', W/2, 113); ctx.textAlign='left';
+    if(gameState==='play' || gameState==='boss'){
+      let hy = 96;
+      const chip = (txt, cor) => {
+        ctx.fillStyle = 'rgba(36,58,99,.85)';
+        roundRect(W/2-62, hy, 124, 24, 8); ctx.fill();
+        ctx.fillStyle = cor;
+        ctx.font = "bold 14px 'Baloo 2', sans-serif"; ctx.textAlign='center';
+        ctx.fillText(txt, W/2, hy+17); ctx.textAlign='left';
+        hy += 28;
+      };
+      if(twin > 0) chip('🧱 TIRO DUPLO '+Math.ceil(twin/60)+'s', '#ffd24a');
+      if(frog.fast > 0) chip('⚡ GUARANÁ '+Math.ceil(frog.fast/60)+'s', '#7ce68a');
     }
     ctx.restore();
   }
@@ -1607,6 +1659,39 @@
     const yy = pu.y + Math.sin(pu.bob)*5;
     ctx.save();
     ctx.translate(pu.x, yy);
+    if(pu.kind && pu.kind !== 'pipoca'){
+      // halo na cor do power-up + desenho próprio
+      const halo = { guarana:'rgba(79,208,106,.30)', chiclete:'rgba(255,154,213,.32)', coracao:'rgba(255,106,122,.30)' }[pu.kind];
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(0,0, 24 + Math.sin(pu.bob)*2, 0, Math.PI*2); ctx.fill();
+      if(pu.kind === 'guarana'){
+        // latinha verde de guaraná
+        ctx.fillStyle='#2f9e44'; roundRect(-11,-16,22,32,5); ctx.fill();
+        ctx.fillStyle='#c8f0d0'; roundRect(-11,-16,22,7,3); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.font="bold 16px 'Baloo 2', sans-serif"; ctx.textAlign='center';
+        ctx.fillText('⚡', 0, 9); ctx.textAlign='left';
+      } else if(pu.kind === 'chiclete'){
+        // bolha de chiclete rosa
+        ctx.fillStyle='#ff9ad5';
+        ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.55)';
+        ctx.beginPath(); ctx.arc(-5,-6,5,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#e77bb8';
+        ctx.beginPath(); ctx.arc(0,15,4,0,Math.PI*2); ctx.fill();
+      } else {
+        // coração
+        ctx.fillStyle='#ff5a6e';
+        ctx.beginPath();
+        ctx.moveTo(0,14);
+        ctx.bezierCurveTo(-20,-2,-13,-18,0,-8);
+        ctx.bezierCurveTo(13,-18,20,-2,0,14);
+        ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.5)';
+        ctx.beginPath(); ctx.arc(-5,-6,3.4,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+      return;
+    }
     // halo
     ctx.fillStyle='rgba(255,210,74,.28)';
     ctx.beginPath(); ctx.arc(0,2, 26 + Math.sin(pu.bob)*2, 0, Math.PI*2); ctx.fill();
