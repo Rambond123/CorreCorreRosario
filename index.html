@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.15</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.16</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -508,6 +508,8 @@
   const props = {};
   const PROP_NAMES = ['predio1','predio2','predio3','predio4','banca','arvore1','arvore2','arvore3','araucaria','poste'];
   for(const k of PROP_NAMES){ const im=new Image(); im.onload=()=>{ props[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/props/'+k+'.png'; }
+  // escala própria de cada adereço em relação à altura-base da fileira
+  const PROP_SCALE = { poste: 0.48, banca: 0.60, arvore3: 0.85, araucaria: 1.1 };
   // fileira de adereços em parallax: escolhe o adereço e o espaçamento de forma estável por "slot"
   function drawPropRow(list, par, gap, hBase, baseY){
     const off = cam * par;
@@ -516,12 +518,12 @@
       const name = list[(((k*7+3) % list.length) + list.length) % list.length];
       const im = props[name]; if(!im) continue;
       const sx = k*gap - off + ((k*53) % 60);
-      const hh = hBase * (0.88 + ((k*29) % 24)/100);
+      const hh = hBase * (PROP_SCALE[name] || 1) * (0.88 + ((k*29) % 24)/100);
       const scl = hh/im.naturalHeight, dw = im.naturalWidth*scl;
       ctx.drawImage(im, sx - dw/2, baseY - hh, dw, hh);
     }
   }
-  for(const k of ['orla','esgoto','ceu','lacador','beirario','chafariz']){
+  for(const k of ['orla','esgoto','ceu','lacador','beirario','chafariz','rosario']){
     const im = new Image(); im.onload=()=>{ scenery[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/'+k+'.png';
   }
   // desenha uma imagem de cenário com a BASE em (x, baseY) e altura hpx (coords de tela)
@@ -1644,9 +1646,9 @@
         }
         ctx.lineTo(W, GROUND + 8); ctx.closePath(); ctx.fill();
         ctx.fillStyle = '#3f6b46'; ctx.fillRect(0, GROUND - 10, W, 20);
-        if(props.araucaria) drawPropRow(['araucaria','poste','arvore1','poste'], 0.5, 640, 170, GROUND - 4);
+        if(props.araucaria) drawPropRow(['araucaria','poste','arvore1','poste'], 0.5, 640, 200, GROUND - 4);
         // monumentos da orla passando, apoiados no gramado
-        const spots = [ ['lacador', 1100, 240], ['beirario', 2700, 165], ['lacador', 4400, 240] ];
+        const spots = [ ['lacador', 1100, 230], ['beirario', 2700, 140], ['lacador', 4400, 230] ];
         for(const [k, wx, hh] of spots){
           const sx = wx - mid;
           if(sx > -320 && sx < W + 320) drawScenery(k, sx, GROUND - 6, hh, 1);
@@ -1683,6 +1685,16 @@
     if(route==='sewer')      drawSewerExit(LEVEL_W - 360);
     else if(route==='sky')   drawSkyExit(LEVEL_W - 360);
     else if(phase===2)       drawHome(LEVEL_W - HOME_W - 80);
+    else if(phase!==2 && scenery.rosario){
+      // fachada real do Rosário (imagem): mesma largura/porta do desenho procedural
+      const im = scenery.rosario;
+      const hh = 400, scl = hh/im.naturalHeight, dw = im.naturalWidth*scl;
+      const left = LEVEL_W - SCHOOL_W - 80;
+      ctx.drawImage(im, left + SCHOOL_W/2 - dw/2, GROUND - hh, dw, hh);
+      // nome na placa
+      ctx.fillStyle='#ffd24a'; ctx.font="bold 11px 'Baloo 2', sans-serif"; ctx.textAlign='center';
+      ctx.fillText('MARISTA ROSÁRIO', left + SCHOOL_W/2, GROUND - hh*0.328); ctx.textAlign='left';
+    }
     else                     drawSchool(LEVEL_W - SCHOOL_W - 80);
     if(manhole && manhole.open) drawManhole({ x: manhole.wx, w: manhole.w });
     for(const o of obstacles) drawObstacle({ x:o.wx, y:GROUND, w:o.w, h:o.h, kind:o.kindS });
@@ -2880,6 +2892,7 @@
     if(route==='sewer') return LEVEL_W - 290;   // escada do esgoto
     if(route==='sky')   return LEVEL_W - 280;   // corda do céu
     if(phase===2) return LEVEL_W - HOME_W - 80 + HOME_DOOR_REL;      // grade da casa
+    if(scenery.rosario) return LEVEL_W - SCHOOL_W - 80 + SCHOOL_W/2;  // portal central da fachada nova
     return LEVEL_W - SCHOOL_W - 80 + SCHOOL_DOOR_REL;                 // portão da escola
   }
 
