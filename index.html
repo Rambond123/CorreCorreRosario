@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.14</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.15</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -306,7 +306,7 @@
     baseSpeed = 6.2; speed = baseSpeed;
     score = 0; bonus = 0;
     // ----- Contra: mundo de largura fixa + câmera -----
-    LEVEL_W = 4200;                   // largura total da fase
+    LEVEL_W = 5400;                   // largura total da fase
     cam = 0;                          // posição da câmera (canto esquerdo)
     frog.x = 150; frog.y = GROUND; frog.vy = 0; frog.onGround = true; frog.squash = 0;
     frog.vx = 0; frog.face = 1;        // direção encarada (1=dir, -1=esq)
@@ -323,7 +323,7 @@
     drones = [];
     if(!keepRoute) route = 'street';   // 'street' (rua), 'sewer' (esgoto) ou 'sky' (céu)
     keepRoute = false;
-    manhole = (route==='street') ? { wx: 1350 + Math.round(Math.random()*800), w: 110, open: true } : null;
+    manhole = (route==='street') ? { wx: 1400 + Math.round(Math.random()*(LEVEL_W*0.42)), w: 110, open: true } : null;
     sewerBossDone = false; skyBossDone = false;
     frog.support = GROUND;
     t = 0; runFrames = 0;
@@ -345,7 +345,7 @@
   function spawnLevelEnemies(){
     enemies = [];
     // 6 a 9 inimigos por fase, em lugares novos a cada partida (longe do início e da arena do chefão)
-    const spots = randSpots(620, 3350, 300, 520);
+    const spots = randSpots(620, LEVEL_W - 850, 300, 520);
     for(const wx of spots){
       if(route==='sewer'){
         const kinds = ['barata','rato','aranha'];
@@ -373,7 +373,7 @@
     if(route==='street'){
       const od = { lata:[41,58], banco:[101,41], banca:[115,67] };
       const names = Object.keys(od);
-      for(const wx of randSpots(820, 3500, 340, 620)){
+      for(const wx of randSpots(820, LEVEL_W - 700, 340, 620)){
         if(manhole && Math.abs(wx - manhole.wx) < 180) continue;          // não tampa o bueiro
         if(enemies.some(e => Math.abs(e.anchor - wx) < 70)) continue;     // só não nasce DENTRO de um inimigo
         const k = names[(Math.random()*names.length)|0];
@@ -382,7 +382,7 @@
     }
     // inimigo aéreo por cenário: drone (rua), morcego (esgoto), fadinha (céu) — 3 ou 4, sorteados
     drones = [];
-    const aerialSpots = randSpots(1150, 3600, 620, 1000);
+    const aerialSpots = randSpots(1150, LEVEL_W - 600, 620, 1000);
     for(const dwx of aerialSpots){
       drones.push({ wx:dwx, y:GROUND-78, w:70, h:26, bob:Math.random()*6, dir:-1, vx:2.4,
                     anchor:dwx, range:260,
@@ -391,7 +391,7 @@
     // power-ups no alto (exigem pulo), sorteados em lugar e em tipo:
     // pipoca (tiro duplo), guaraná (velocidade), bolha de chiclete (escudo) e coração (vida extra, raro)
     powerups = [];
-    for(const pwx of randSpots(950, 3400, 560, 950)){
+    for(const pwx of randSpots(950, LEVEL_W - 800, 560, 950)){
       const r = Math.random();
       const kind = r < 0.38 ? 'pipoca' : r < 0.62 ? 'guarana' : r < 0.86 ? 'chiclete' : 'coracao';
       powerups.push({ wx:pwx, y:GROUND-(110+Math.random()*16), bob:Math.random()*Math.PI*2, taken:false, kind });
@@ -505,7 +505,23 @@
   const BOSS_KINDS  = ['adolescente','frangorato','ursao'];
   const enemySprites = {}, bossSprites = {};
   const scenery = {};
-  for(const k of ['orla','lacador','beirario','chafariz']){
+  const props = {};
+  const PROP_NAMES = ['predio1','predio2','predio3','predio4','banca','arvore1','arvore2','arvore3','araucaria','poste'];
+  for(const k of PROP_NAMES){ const im=new Image(); im.onload=()=>{ props[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/props/'+k+'.png'; }
+  // fileira de adereços em parallax: escolhe o adereço e o espaçamento de forma estável por "slot"
+  function drawPropRow(list, par, gap, hBase, baseY){
+    const off = cam * par;
+    const k0 = Math.floor((off - 300) / gap);
+    for(let k = k0; k*gap < off + W + 300; k++){
+      const name = list[(((k*7+3) % list.length) + list.length) % list.length];
+      const im = props[name]; if(!im) continue;
+      const sx = k*gap - off + ((k*53) % 60);
+      const hh = hBase * (0.88 + ((k*29) % 24)/100);
+      const scl = hh/im.naturalHeight, dw = im.naturalWidth*scl;
+      ctx.drawImage(im, sx - dw/2, baseY - hh, dw, hh);
+    }
+  }
+  for(const k of ['orla','esgoto','ceu','lacador','beirario','chafariz']){
     const im = new Image(); im.onload=()=>{ scenery[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/'+k+'.png';
   }
   // desenha uma imagem de cenário com a BASE em (x, baseY) e altura hpx (coords de tela)
@@ -1598,9 +1614,15 @@
     ctx.translate(ox, oy); ctx.scale(scale, scale);
 
     if(route==='sewer'){
-      drawSewerScene();
+      if(scenery.esgoto){
+        tilePanorama(scenery.esgoto, 0.12);
+        drawSewerFloor();
+      } else drawSewerScene();
     } else if(route==='sky'){
-      drawSkyScene();
+      if(scenery.ceu){
+        tilePanorama(scenery.ceu, 0.12);
+        drawSkyFloor();
+      } else drawSkyScene();
     } else {
       const sunset = (phase === 2) && scenery.orla;
       if(sunset){
@@ -1611,15 +1633,24 @@
         for(let x = -off; x < W; x += tw){ ctx.drawImage(im, x, 0, tw + 1, H); }
         // véu quente para casar o fundo com o resto do desenho
         ctx.fillStyle = 'rgba(255,150,80,.08)'; ctx.fillRect(0,0,W,H);
-        // monumentos da orla passando (parallax médio, coords de tela)
+        // barranco de grama da orla (os monumentos ficam em TERRA, não na água)
         const mid = cam * 0.5;
-        const spots = [ ['lacador', 900, 250], ['beirario', 2100, 190], ['lacador', 3300, 250] ];
+        ctx.fillStyle = '#4a7a50';
+        ctx.beginPath();
+        ctx.moveTo(0, GROUND + 8);
+        const gOff = (mid*0.6) % 90;
+        for(let x = -gOff; x <= W + 90; x += 90){
+          ctx.quadraticCurveTo(x + 45, GROUND - 44, x + 90, GROUND - 26);
+        }
+        ctx.lineTo(W, GROUND + 8); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#3f6b46'; ctx.fillRect(0, GROUND - 10, W, 20);
+        if(props.araucaria) drawPropRow(['araucaria','poste','arvore1','poste'], 0.5, 640, 170, GROUND - 4);
+        // monumentos da orla passando, apoiados no gramado
+        const spots = [ ['lacador', 1100, 240], ['beirario', 2700, 165], ['lacador', 4400, 240] ];
         for(const [k, wx, hh] of spots){
           const sx = wx - mid;
-          if(sx > -300 && sx < W + 300) drawScenery(k, sx, GROUND + 6, hh, 0.95);
+          if(sx > -320 && sx < W + 320) drawScenery(k, sx, GROUND - 6, hh, 1);
         }
-        // silhueta de gramado da orla por trás da calçada
-        ctx.fillStyle = '#3f6b46'; ctx.fillRect(0, GROUND - 8, W, 14);
         drawStreetCam();
       } else {
         // ---- Fase 1: Bom Fim / Redenção ----
@@ -1631,14 +1662,16 @@
         ctx.fillStyle='rgba(255,250,228,.9)';
         ctx.beginPath(); ctx.arc(W*0.82, 88, 44, 0, Math.PI*2); ctx.fill();
         drawMonument(cam*0.05);
-        drawTrees(cam*0.22);
+        if(props.arvore1) drawPropRow(['arvore1','arvore2','araucaria','arvore1','arvore3'], 0.22, 190, 165, GROUND + 4);
+        else drawTrees(cam*0.22);
         // chafariz da Redenção passando entre as árvores e os prédios
         const mid = cam * 0.32;
-        for(const wx of [700, 2300]){
+        for(const wx of [800, 2600, 4300]){
           const sx = wx - mid;
           if(sx > -200 && sx < W + 200) drawScenery('chafariz', sx, GROUND + 2, 150, 0.9);
         }
-        drawBuildings(cam*0.42);
+        if(props.predio1) drawPropRow(['predio1','predio4','predio2','banca','predio3','predio1','poste','predio2'], 0.42, 235, 300, GROUND + 8);
+        else drawBuildings(cam*0.42);
         drawStreetCam();
       }
     }
@@ -1965,6 +1998,30 @@
     ctx.restore();
   }
 
+  function tilePanorama(im, par){
+    const scl = H / im.naturalHeight, tw = im.naturalWidth * scl;
+    const off = (cam * par) % tw;
+    for(let x = -off; x < W; x += tw){ ctx.drawImage(im, x, 0, tw + 1, H); }
+  }
+  function drawSewerFloor(){
+    ctx.fillStyle='#3a4640'; ctx.fillRect(0, GROUND, W, H-GROUND);
+    ctx.fillStyle='#46544c'; ctx.fillRect(0, GROUND, W, 8);
+    ctx.fillStyle='#5fcf4a';
+    ctx.fillRect(0, GROUND+8, W, 7);
+    const sgooey=(cam*1.0)%40;
+    for(let x=-sgooey-40; x<W+40; x+=40){
+      ctx.beginPath(); ctx.moveTo(x, GROUND+15); ctx.quadraticCurveTo(x+10, GROUND+34, x+20, GROUND+15); ctx.closePath();
+      ctx.fillStyle='#57c043'; ctx.fill();
+      ctx.fillStyle='rgba(180,255,150,.25)'; ctx.fillRect(x+4, GROUND+9, 4, 4);
+    }
+  }
+  function drawSkyFloor(){
+    ctx.fillStyle='#eaf4ff'; ctx.fillRect(0,GROUND+18,W,H-GROUND-18);
+    ctx.fillStyle='#fff';
+    const off=(cam*0.5)%46;
+    for(let x=-off-10; x<W+40; x+=46){ ctx.beginPath(); ctx.arc(x+20,GROUND+16,30,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle='#f4f9ff'; ctx.fillRect(0,GROUND+26,W,H-GROUND-26);
+  }
   function drawSewerScene(){
     // fundo (mais claro para os bichos aparecerem)
     ctx.fillStyle = '#5a5650'; ctx.fillRect(0,0,W,H);
@@ -2861,8 +2918,8 @@
   // medalha por fase: ouro >=1300 e <100s; prata >=1150 e <150s; senão bronze (máx. teórico ≈1500)
   function medalFor(pts, frames){
     const secs = frames/60;
-    if(pts >= 1300 && secs < 100) return {emoji:'🥇', nome:'OURO',   cor:'#ffd24a'};
-    if(pts >= 1150 && secs < 150) return {emoji:'🥈', nome:'PRATA',  cor:'#cdd2da'};
+    if(pts >= 1300 && secs < 130) return {emoji:'🥇', nome:'OURO',   cor:'#ffd24a'};
+    if(pts >= 1150 && secs < 190) return {emoji:'🥈', nome:'PRATA',  cor:'#cdd2da'};
     return {emoji:'🥉', nome:'BRONZE', cor:'#cd7f4a'};
   }
 
