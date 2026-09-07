@@ -1,6 +1,6 @@
 // Service worker: guarda o jogo em cache para abrir offline.
 // Ao publicar uma versão nova, mude o CACHE abaixo para o cache antigo ser descartado.
-const CACHE = 'ccr-v0.9';
+const CACHE = 'ccr-v0.10';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './sprites/vito.png', './sprites/maria.png',
   ...['cachorro','patinete','drone','barata','rato','aranha','morcego','unicornio','coelho','ursinho','gatinho','cupcake','fadinha'].map(k=>'./sprites/enemies/'+k+'.png'),
   ...['adolescente','frangorato','ursao'].map(k=>'./sprites/bosses/'+k+'.png')];
