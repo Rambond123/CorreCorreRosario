@@ -1,7 +1,7 @@
 # CORRE CORRE ROSÁRIO — Backlog
 
 > Projeto: jogo HTML5 (canvas, arquivo único) para jogar no celular.
-> Arquivo base: `corre-corre-rosario.html` (versão vinda do chat, ex-`correcontra.html`).
+> Arquivo base: `index.html` (ex-`corre-corre-rosario.html`, ex-`correcontra.html`). Publicado em https://rambond123.github.io/CorreCorreRosario/
 > Data do diagnóstico: 07/09/2026.
 > **Atualização 07/09/2026 (v0.2):** concluídos CCR-01, CCR-03, CCR-04, CCR-05, CCR-06, CCR-08 (parcial: só fallback de fonte) e os bugs BUG-02 a BUG-11. Pendentes em P0: CCR-02 (delta-time) e CCR-07 (limpeza).
 > **v0.3 (07/09/2026):** CCR-02 (passo fixo de 60 Hz, independente do refresh), CCR-07 (≈330 linhas de código morto removidas), CCR-11 (vibração), CCR-12 (pausa com botão, P/Esc e ao sair do app), CCR-13 (aviso de retrato + botão de tela cheia). P0 concluído exceto embutir fontes.
@@ -75,7 +75,7 @@ Legenda de esforço: **P** (até 1h), **M** (uma sessão), **G** (várias sessõ
 | ~~CCR-11~~ ✅ | **Vibração** ao levar dano (`navigator.vibrate`) | P |
 | ~~CCR-12~~ ✅ | **Botão de pausa** e pausa automática ao sair do app (`visibilitychange`) | P |
 | ~~CCR-13~~ ✅ | Aviso "vire o celular" quando estiver em retrato + botão de tela cheia | P |
-| CCR-14 | **PWA**: manifest + service worker para instalar na tela inicial e jogar offline com ícone próprio | M |
+| ~~CCR-14~~ ✅ | **PWA**: manifest + service worker para instalar na tela inicial e jogar offline com ícone próprio | M |
 | CCR-15 | Tela de **"como jogar"** com os controles ilustrados (para as crianças aprenderem sozinhas) | P |
 | ~~CCR-16~~ ✅ | Continuar da Fase 2 após game over (BUG-10) e barra de progresso consistente (BUG-11) | P |
 
