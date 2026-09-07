@@ -1,7 +1,9 @@
-// Service worker: guarda o jogo em cache para abrir offline.
-// Ao publicar uma versão nova, mude o CACHE abaixo para o cache antigo ser descartado.
-const CACHE = 'ccr-v0.10';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './sprites/vito.png', './sprites/maria.png',
+// Service worker do Corre Corre Rosário.
+// Estratégia: REDE PRIMEIRO para tudo (com internet, sempre a versão nova);
+// o cache é só a reserva para jogar offline. Mude o CACHE a cada versão.
+const CACHE = 'ccr-v0.11';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png',
+  './sprites/vito.png', './sprites/maria.png',
   ...['cachorro','patinete','drone','barata','rato','aranha','morcego','unicornio','coelho','ursinho','gatinho','cupcake','fadinha'].map(k=>'./sprites/enemies/'+k+'.png'),
   ...['adolescente','frangorato','ursao'].map(k=>'./sprites/bosses/'+k+'.png')];
 
@@ -14,15 +16,10 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  // fontes do Google: rede primeiro, cache como reserva
-  if (url.hostname.endsWith('googleapis.com') || url.hostname.endsWith('gstatic.com')) {
-    e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); return r; }).catch(() => caches.match(req)));
-    return;
-  }
-  // o jogo em si: cache primeiro, atualiza em segundo plano
-  e.respondWith(caches.match(req).then(hit => {
-    const net = fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); } return r; }).catch(() => hit);
-    return hit || net;
-  }));
+  e.respondWith(
+    fetch(req).then(r => {
+      if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
+      return r;
+    }).catch(() => caches.match(req, { ignoreSearch: true }).then(hit => hit || caches.match('./index.html')))
+  );
 });

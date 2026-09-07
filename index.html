@@ -213,6 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.11</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -490,7 +491,7 @@
   const BOSS_KINDS  = ['adolescente','frangorato','ursao'];
   const enemySprites = {}, bossSprites = {};
   // folhas que saíram viradas para a DIREITA no gerador (o padrão dos inimigos é esquerda)
-  const FACES_RIGHT = { gatinho:true, patinete:true };
+  const FACES_RIGHT = { gatinho:true };
   // mede o conteúdo real (caixa dos pixels opacos) de cada quadro, para escalar pelo bicho e não pela célula
   function measureSheet(im, frames){
     const cw = im.naturalWidth/frames, ch = im.naturalHeight;
@@ -511,10 +512,12 @@
   for(const k of BOSS_KINDS){  const im=new Image(); im.onload=()=>{ try{ measureSheet(im,2); }catch(e){} bossSprites[k]=im; };  im.onerror=()=>{}; im.src='sprites/bosses/'+k+'.png'; }
   // desenha o quadro (0/1) de uma folha de 2 células: o CONTEÚDO do quadro fica com altura hpx,
   // centrado em cx, com a base em baseY. faceRight espelha (as folhas olham para a esquerda).
-  function drawTwoFrame(im, frame, cx, baseY, hpx, faceRight, alpha, kind){
+  function drawTwoFrame(im, frame, cx, baseY, hpx, faceRight, alpha, kind, maxW){
     const cw = im._cw || im.naturalWidth/2, ch = im._ch || im.naturalHeight;
     const b = (im._boxes && im._boxes[frame]) || {x:0,y:0,w:cw,h:ch};
-    const sc = hpx/b.h, dw = b.w*sc, dh = b.h*sc;
+    let sc = hpx/b.h;
+    if(maxW && b.w*sc > maxW) sc = maxW/b.w;
+    const dw = b.w*sc, dh = b.h*sc;
     const flip = !!faceRight !== !!(kind && FACES_RIGHT[kind]);
     ctx.save();
     if(alpha!=null) ctx.globalAlpha = alpha;
@@ -715,43 +718,92 @@
     if(boss.hurt>0) boss.hurt--;
 
     // entrada: caminha da direita até a posição de combate
+    const ARENA_L = LEVEL_W - 900, ARENA_R = LEVEL_W - 300;
+    if(!boss.mode){ boss.mode = 'fight'; boss.modeT = 0; }
+    boss.modeT++;
+    const enraged = boss.hp <= Math.ceil(boss.maxhp/3);   // furioso no último terço de vida
     if(!boss.entered){
       boss.wx -= 3.2; boss.step++;
-      if(boss.wx <= boss.home){ boss.wx = boss.home; boss.entered = true; }
-    } else {
-      // em combate: avança devagar na direção da criança, mas mantém distância (ela precisa atirar, não encostar)
+      if(boss.wx <= boss.home){ boss.wx = boss.home; boss.entered = true; boss.mode='fight'; boss.modeT=0; }
+    } else if(boss.mode === 'fight'){
+      // avança devagar mantendo distância (a criança precisa atirar, não encostar)
       const gap = boss.wx - frog.x;
-      const minX = LEVEL_W - 760, maxX = LEVEL_W - 380;
-      if(gap > 330) boss.wx -= 0.6; else if(gap < 230) boss.wx += 0.9;
-      boss.wx = Math.max(minX, Math.min(maxX, boss.wx));
+      if(gap > 330) boss.wx -= (enraged?1.0:0.6); else if(gap < 230) boss.wx += 0.9;
+      boss.wx = Math.max(ARENA_L+60, Math.min(ARENA_R, boss.wx));
       boss.step++;
+      // BOTE: abaixo de 2/3 do HP, de tempos em tempos ele avisa e investe — tem que PULAR por cima
+      if(boss.announce<=0 && boss.hp <= boss.maxhp*2/3 && boss.modeT > (enraged?150:230)){
+        boss.mode = 'telegraph'; boss.modeT = 0;
+        floatTxt = { x: boss.wx, y: GROUND - BOSS_H - 26, t: 46, txt: '❗' };
+      }
+    } else if(boss.mode === 'telegraph'){
+      // treme parado por ~0,75s antes do bote (deixa a criança se preparar)
+      if(boss.modeT > 45){
+        boss.mode = 'dash'; boss.modeT = 0;
+        boss.dashDir = (frog.x < boss.wx) ? -1 : 1;
+      }
+    } else if(boss.mode === 'dash'){
+      boss.wx += boss.dashDir * (boss.urso ? 7.5 : 9);
+      if(boss.wx <= ARENA_L || boss.wx >= ARENA_R || boss.modeT > 80){
+        boss.wx = Math.max(ARENA_L, Math.min(ARENA_R, boss.wx));
+        boss.mode = 'tired'; boss.modeT = 0;
+        floatTxt = { x: boss.wx, y: GROUND - BOSS_H - 26, t: 60, txt: '💫 AGORA!' };
+      }
+    } else if(boss.mode === 'tired'){
+      // cansado após o bote: parado, leva DANO EM DOBRO — a hora de encher de tiro
+      if(boss.modeT > 120){ boss.mode = 'fight'; boss.modeT = 0; boss.throwIn = 40; }
     }
-    boss.x = boss.wx;
+    // posição de desenho (tremida no aviso do bote)
+    boss.x = boss.wx + (boss.mode==='telegraph' ? Math.sin(boss.modeT*1.3)*3.5 : 0);
     // encostar no chefão também machuca
     if(frog.invuln<=0 && boss.entered){
       const bigW = boss.urso? BOSS_W*1.5 : BOSS_W;
       if(Math.abs(frog.x - boss.wx) < bigW*0.5 + frog.w*0.3 && frog.y > GROUND - BOSS_H*0.9){ hurtPlayer(); }
     }
 
-    // o chefão encara a criança e arremessa projéteis em linha reta
-    const bdir = (frog.x < boss.wx) ? -1 : 1;
-    if(boss.entered && boss.announce<=0 && --boss.throwIn <= 0){
-      boss.throwIn = (boss.urso? 70:55) + Math.random()*45;
-      const high = Math.random() < 0.35;                      // 35%: na altura do peito -> agachar
-      const sy = high ? GROUND - (92 + Math.random()*10) : GROUND - (40 + Math.random()*30);
-      stickers.push({ wx: boss.wx + bdir*BOSS_W*0.5, y: sy, vx: (boss.urso?6:7.5)*bdir + 0, vy: 0,
-                      spin: 0, hit:false, egg: !!boss.frango, bubble: !!boss.urso,
-                      r: boss.urso? (16+Math.random()*8):0 });
+    // o chefão encara a criança e arremessa (só no modo de luta)
+    const bdir = (frog.x < boss.wx) ? -1 : 1;    // -1 = criança à esquerda
+    if(boss.entered && boss.mode==='fight' && boss.announce<=0 && --boss.throwIn <= 0){
+      boss.throwIn = ((boss.urso? 70:55) + Math.random()*45) * (enraged ? 0.55 : 1);
+      const spd = (boss.urso?6:7.5) * (enraged ? 1.25 : 1);
+      const roll = Math.random();
+      const base = { spin:0, hit:false, egg: !!boss.frango, bubble: !!boss.urso,
+                     r: boss.urso? (16+Math.random()*8):0 };
+      if(roll < 0.40){
+        // BAIXO, reto, na altura das pernas -> PULAR
+        stickers.push({ ...base, wx: boss.wx + bdir*BOSS_W*0.5, y: GROUND - (40 + Math.random()*20),
+                        vx: spd*bdir, vy: 0 });
+      } else if(roll < 0.70){
+        // ALTO, reto, na altura da cabeça -> AGACHAR
+        stickers.push({ ...base, wx: boss.wx + bdir*BOSS_W*0.5, y: GROUND - (86 + Math.random()*10),
+                        vx: spd*bdir, vy: 0 });
+      } else {
+        // LOB: sobe em arco e CAI ONDE A CRIANÇA ESTÁ -> tem que SAIR do lugar
+        const T = 52;                                          // quadros de voo
+        const g = 0.34;
+        const sy = GROUND - BOSS_H*0.75;
+        stickers.push({ ...base, wx: boss.wx, y: sy,
+                        vx: (frog.x - boss.wx) / T,
+                        vy: -(g*T)/2 - (GROUND - sy)/T, grav: g, lob: true });
+      }
     }
     for(const st of stickers){
-      st.wx -= st.vx;            // vx já tem o sinal da direção (movimenta em linha reta)
+      st.wx += st.vx;                              // vx já aponta para a criança
+      if(st.grav){ st.vy += st.grav; }
+      st.y += st.vy || 0;
       st.spin += 0.4;
+      // lob estoura no chão
+      if(st.grav && st.y >= GROUND){
+        st.hit = true;
+        burst(st.wx, GROUND-6, 12, st.bubble ? '#a8d8ff' : st.egg ? '#fff7ea' : '#ffd24a');
+        continue;
+      }
       const half = frog.w*0.34, topBody = frog.y - (frog.crouch ? frog.h*0.55 : frog.h);
       if(!st.hit && Math.abs(st.wx - frog.x) < (12+half) && st.y > topBody && st.y < frog.y && frog.invuln<=0){
         st.hit = true; hurtPlayer();
       }
     }
-    stickers = stickers.filter(st => !st.hit && st.wx > cam-80 && st.wx < cam+W+80);
+    stickers = stickers.filter(st => !st.hit && st.wx > cam-120 && st.wx < cam+W+120 && st.y > -80);
 
     // tiros de Lego da criança (coords de mundo)
     for(const b of bullets){ b.x += b.vx; b.y += b.vy; b.vy += b.grav||0; b.spin += 0.5; }
@@ -762,9 +814,11 @@
       if(b.x>bx0 && b.x<bx1 && b.y>by0 && b.y<by1){
         if(!boss.entered || boss.announce>0){ b.dead = true; burst(b.x, b.y, 4, '#ffffff'); floatTxt = { x: boss.wx, y: GROUND-bigH-10, t: 30, txt: '!' }; break; }
         if(boss.hurt>0){ break; }                      // pisca de dano: imune por um instante
-        b.dead = true; boss.hp--; boss.hurt = 16;
+        b.dead = true;
+        const dmg = (boss.mode==='tired') ? 2 : 1;     // cansado após o bote: dano em dobro
+        boss.hp -= dmg; boss.hurt = (boss.mode==='tired') ? 8 : 16;
         burst(b.x, b.y, 12, b.col);
-        floatTxt = { x: boss.wx, y: GROUND-bigH-10, t: 40, txt: boss.hp>0? ('HP '+boss.hp) : 'KO!' };
+        floatTxt = { x: boss.wx, y: GROUND-bigH-10, t: 40, txt: boss.hp>0? ((boss.mode==='tired'?'-2! ':'')+'HP '+Math.max(0,boss.hp)) : 'KO!' };
         if(boss.hp <= 0){
           burst(boss.wx, GROUND-bigH*0.5, 28, '#ffd24a');
           bonus += 150; recalcScore();
@@ -1086,12 +1140,25 @@
     const bim = bossSprites[bk];
     if(bim){
       const big = boss.urso ? 1.5 : 1.0, h = BOSS_H*big;
-      const throwing = boss.entered && boss.announce<=0 && boss.throwIn < 18;   // pose de arremesso pouco antes do tiro
+      const throwing = boss.entered && boss.mode==='fight' && boss.announce<=0 && boss.throwIn < 18;
       const faceRight = frog.x > boss.wx;
       const flash = (boss.hurt>0 && Math.floor(t/2)%2===0);
+      const tiredDip = (boss.mode==='tired') ? Math.sin(t*0.15)*2 : 0;   // "ofegando"
       ctx.fillStyle='rgba(0,0,0,.18)';
       ctx.beginPath(); ctx.ellipse(boss.x, GROUND+6, BOSS_W*big*0.6, 7, 0,0,Math.PI*2); ctx.fill();
-      drawTwoFrame(bim, throwing ? 1 : 0, boss.x, GROUND, h, faceRight, flash?0.55:1, bk);
+      drawTwoFrame(bim, throwing ? 1 : 0, boss.x, GROUND + tiredDip, h - (boss.mode==='tired'?6:0), faceRight, flash?0.55:1, bk);
+      if(boss.mode==='tired' && Math.floor(t/20)%2===0){
+        ctx.font = "bold 20px 'Baloo 2', sans-serif"; ctx.textAlign='center'; ctx.fillStyle='#8ecdf7';
+        ctx.fillText('💤', boss.x + 26, GROUND - h - 4); ctx.textAlign='left';
+      }
+      // barra de vida do chefão
+      if(boss.entered){
+        const bw = 74, bx0 = boss.x - bw/2, by = GROUND - h - 20;
+        ctx.fillStyle='rgba(15,25,35,.55)'; roundRect(bx0-2, by-2, bw+4, 10, 5); ctx.fill();
+        ctx.fillStyle = (boss.mode==='tired') ? '#8ecdf7' : '#e23b3b';
+        const fw = Math.max(0, bw * boss.hp / boss.maxhp);
+        if(fw>0){ roundRect(bx0, by, fw, 6, 3); ctx.fill(); }
+      }
       return;
     }
     if(boss.frango){ drawFrangoRato(); return; }
@@ -1475,7 +1542,7 @@
         const yy = d.y + Math.sin(d.bob)*3;
         ctx.fillStyle='rgba(0,0,0,.10)';
         ctx.beginPath(); ctx.ellipse(d.wx, GROUND-2, 26, 5, 0,0,Math.PI*2); ctx.fill();
-        drawTwoFrame(aim, Math.floor(t/6)%2, d.wx, yy+22, ak==='drone' ? 34 : 48, d.dir>0, null, ak);
+        drawTwoFrame(aim, Math.floor(t/6)%2, d.wx, yy+20, ak==='drone' ? 40 : 48, d.dir>0, null, ak, ak==='drone' ? 64 : null);
       }
       else if(d.bat) drawBat(dd); else if(d.fairy) drawFairyEnemy(dd); else drawDrone(dd);
     }
@@ -2673,7 +2740,18 @@
 
   // PWA: registra o service worker (funciona só em https ou localhost; em file:// é ignorado)
   if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-    window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').then(reg=>{
+        reg.update().catch(()=>{});
+        setInterval(()=>reg.update().catch(()=>{}), 60*60*1000);   // confere de hora em hora se ficar aberto
+      }).catch(()=>{});
+    });
+    // quando um service worker novo assume, recarrega uma vez (só no menu, para não cortar partida)
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+      if(reloaded) return; reloaded = true;
+      if(typeof gameState==='undefined' || gameState==='menu' || gameState==='pick') location.reload();
+    });
   }
 })();
 </script>
