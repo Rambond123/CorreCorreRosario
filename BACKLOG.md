@@ -5,6 +5,7 @@
 > Data do diagnóstico: 07/09/2026.
 > **Atualização 07/09/2026 (v0.2):** concluídos CCR-01, CCR-03, CCR-04, CCR-05, CCR-06, CCR-08 (parcial: só fallback de fonte) e os bugs BUG-02 a BUG-11. Pendentes em P0: CCR-02 (delta-time) e CCR-07 (limpeza).
 > **v0.3 (07/09/2026):** CCR-02 (passo fixo de 60 Hz, independente do refresh), CCR-07 (≈330 linhas de código morto removidas), CCR-11 (vibração), CCR-12 (pausa com botão, P/Esc e ao sair do app), CCR-13 (aviso de retrato + botão de tela cheia). P0 concluído exceto embutir fontes.
+> **v0.9–v0.12 (07/09/2026):** sprites de todos os personagens, inimigos e chefões (Lovable); chefões com bote telegrafado, cansaço com dano dobrado, lob e fúria; SW rede-primeiro com versão na tela; **mapa sorteado a cada partida** (inimigos, obstáculos, aéreos, bueiro e power-ups) e power-ups novos: guaraná (velocidade), bolha de chiclete (escudo) e coração (vida extra).
 
 ---
 
@@ -87,13 +88,18 @@ Legenda de esforço: **P** (até 1h), **M** (uma sessão), **G** (várias sessõ
 | CCR-21 | **Fase 2 realmente diferente**: layout próprio da volta pra casa (hoje é a mesma fase com labels trocados) | M |
 | CCR-22 | **Curva de dificuldade**: mais inimigos e patrulha mais rápida perto do fim; Fase 2 mais difícil que a 1 | P |
 | CCR-23 | **Moedas/figurinhas colecionáveis** pelo caminho (pontuação que faz sentido pras medalhas + motivo para explorar) | M |
-| CCR-24 | **Vida extra** (coração no alto, raro) e **checkpoint** no meio da fase | P |
+| ~~CCR-24~~ ◐ | **Vida extra** feita (coração, v0.12); falta o **checkpoint** no meio da fase | P |
 | CCR-25 | Inimigos que **atiram** (a estrutura `eBullets` já existe e está ociosa) | P |
 | CCR-26 | **Plataformas** flutuantes/andares para dar verticalidade (hoje o mundo é só o chão) | M |
-| CCR-27 | Mais **chefões com padrões** (2 fases de ataque, pulo, invulnerabilidade temporária) | M |
+| ~~CCR-27~~ ✅ | Chefões com padrões: bote telegrafado, cansaço (dano 2×), lob em arco e fúria no último terço (v0.10) | M |
 | CCR-28 | Trazer de volta o **Viaduto Ildo Meneghetti** como trecho da fase (código já existe, precisa converter para coordenadas de mundo) | M |
 | CCR-29 | Trazer de volta a **fada** na queda do bueiro da Maria (animação já existe em `drawFairy`) | P |
 | CCR-30 | **Novos personagens** e cenários (ideias a definir com as crianças) | G |
+| CCR-31 | **Mochila a jato** 🎒🔥 — power-up de pulo duplo/voo curto (~8 s); abre espaço para segredos no alto do mapa (combina com CCR-26, plataformas) | P |
+| CCR-32 | **Fase do Papai** 👨🩴 — novo cenário com o **papai como chefão** que arremessa o **chinelo teleguiado** (projétil que faz curva e persegue a criança; agachar não basta, tem que despistar). Depois de derrotado, o chinelo pode virar power-up do jogador nessa fase | G |
+| CCR-33 | **Apito** — power-up que congela todos os inimigos da tela por ~3 s | P |
+| CCR-34 | **Ímã de figurinhas** — atrai colecionáveis próximos (depende do CCR-23) | P |
+| CCR-35 | **Cachorro amigo** 🐶 — companheiro que corre junto e bloqueia um projétil antes de fugir | M |
 
 ### P3 — Polimento
 
