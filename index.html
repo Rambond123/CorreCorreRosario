@@ -485,6 +485,43 @@
     im.onerror = ()=>{};
     im.src = 'sprites/' + c + '.png';
   }
+  // inimigos (sprites/enemies/<kind>.png, 2 quadros de 128x128) e chefões (sprites/bosses/<kind>.png, 2 quadros de 160x256)
+  const ENEMY_KINDS = ['cachorro','patinete','drone','barata','rato','aranha','morcego','unicornio','coelho','ursinho','gatinho','cupcake','fadinha'];
+  const BOSS_KINDS  = ['adolescente','frangorato','ursao'];
+  const enemySprites = {}, bossSprites = {};
+  // folhas que saíram viradas para a DIREITA no gerador (o padrão dos inimigos é esquerda)
+  const FACES_RIGHT = { gatinho:true, patinete:true };
+  // mede o conteúdo real (caixa dos pixels opacos) de cada quadro, para escalar pelo bicho e não pela célula
+  function measureSheet(im, frames){
+    const cw = im.naturalWidth/frames, ch = im.naturalHeight;
+    const c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = ch;
+    const g = c.getContext('2d', { willReadFrequently:true }); g.drawImage(im, 0, 0);
+    const boxes = [];
+    for(let f=0; f<frames; f++){
+      const d = g.getImageData(f*cw, 0, cw, ch).data;
+      let x0=cw, x1=-1, y0=ch, y1=-1;
+      for(let y=0; y<ch; y++) for(let x=0; x<cw; x++){
+        if(d[(y*cw+x)*4+3] > 24){ if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; }
+      }
+      boxes.push(x1<0 ? {x:0,y:0,w:cw,h:ch} : {x:x0, y:y0, w:x1-x0+1, h:y1-y0+1});
+    }
+    im._boxes = boxes; im._cw = cw; im._ch = ch;
+  }
+  for(const k of ENEMY_KINDS){ const im=new Image(); im.onload=()=>{ try{ measureSheet(im,2); }catch(e){} enemySprites[k]=im; }; im.onerror=()=>{}; im.src='sprites/enemies/'+k+'.png'; }
+  for(const k of BOSS_KINDS){  const im=new Image(); im.onload=()=>{ try{ measureSheet(im,2); }catch(e){} bossSprites[k]=im; };  im.onerror=()=>{}; im.src='sprites/bosses/'+k+'.png'; }
+  // desenha o quadro (0/1) de uma folha de 2 células: o CONTEÚDO do quadro fica com altura hpx,
+  // centrado em cx, com a base em baseY. faceRight espelha (as folhas olham para a esquerda).
+  function drawTwoFrame(im, frame, cx, baseY, hpx, faceRight, alpha, kind){
+    const cw = im._cw || im.naturalWidth/2, ch = im._ch || im.naturalHeight;
+    const b = (im._boxes && im._boxes[frame]) || {x:0,y:0,w:cw,h:ch};
+    const sc = hpx/b.h, dw = b.w*sc, dh = b.h*sc;
+    const flip = !!faceRight !== !!(kind && FACES_RIGHT[kind]);
+    ctx.save();
+    if(alpha!=null) ctx.globalAlpha = alpha;
+    if(flip){ ctx.translate(cx,0); ctx.scale(-1,1); ctx.translate(-cx,0); }
+    ctx.drawImage(im, frame*cw + b.x, b.y, b.w, b.h, cx-dw/2, baseY-dh, dw, dh);
+    ctx.restore();
+  }
   function spriteFrame(o){
     if(o.wave) return 'wave';
     if(o.crouch) return 'crouch';
@@ -1045,6 +1082,18 @@
 
   function drawBoss(){
     if(!boss) return;
+    const bk = boss.frango ? 'frangorato' : boss.urso ? 'ursao' : 'adolescente';
+    const bim = bossSprites[bk];
+    if(bim){
+      const big = boss.urso ? 1.5 : 1.0, h = BOSS_H*big;
+      const throwing = boss.entered && boss.announce<=0 && boss.throwIn < 18;   // pose de arremesso pouco antes do tiro
+      const faceRight = frog.x > boss.wx;
+      const flash = (boss.hurt>0 && Math.floor(t/2)%2===0);
+      ctx.fillStyle='rgba(0,0,0,.18)';
+      ctx.beginPath(); ctx.ellipse(boss.x, GROUND+6, BOSS_W*big*0.6, 7, 0,0,Math.PI*2); ctx.fill();
+      drawTwoFrame(bim, throwing ? 1 : 0, boss.x, GROUND, h, faceRight, flash?0.55:1, bk);
+      return;
+    }
     if(boss.frango){ drawFrangoRato(); return; }
     if(boss.urso){ drawUrsao(); return; }
     const cx=boss.x, w=BOSS_W, h=BOSS_H, top=GROUND-h;
@@ -1420,7 +1469,15 @@
     for(const en of enemies) drawEnemy(en);
     for(const d of drones){ if(d.dead) continue;
       const dd = { x:d.wx, y:d.y, w:d.w, bob:d.bob, lilac:d.lilac };
-      if(d.bat) drawBat(dd); else if(d.fairy) drawFairyEnemy(dd); else drawDrone(dd);
+      const ak = d.bat ? 'morcego' : d.fairy ? 'fadinha' : 'drone';
+      const aim = enemySprites[ak];
+      if(aim){
+        const yy = d.y + Math.sin(d.bob)*3;
+        ctx.fillStyle='rgba(0,0,0,.10)';
+        ctx.beginPath(); ctx.ellipse(d.wx, GROUND-2, 26, 5, 0,0,Math.PI*2); ctx.fill();
+        drawTwoFrame(aim, Math.floor(t/6)%2, d.wx, yy+22, ak==='drone' ? 34 : 48, d.dir>0, null, ak);
+      }
+      else if(d.bat) drawBat(dd); else if(d.fairy) drawFairyEnemy(dd); else drawDrone(dd);
     }
     for(const pu of powerups){ if(!pu.taken){ pu.x = pu.wx; drawPowerup(pu); } }
     if(gameState==='boss' && boss){
@@ -2206,8 +2263,17 @@
   }
 
   function drawEnemy(en){
-    // todos os inimigos reaproveitam os desenhos originais (drawObstacle)
-    if(en.hurt>0 && Math.floor(t/2)%2===0) ctx.globalAlpha = 0.5;
+    const flash = (en.hurt>0 && Math.floor(t/2)%2===0);
+    const im = enemySprites[en.kindS];
+    if(im){
+      // sombra + sprite (2 quadros alternando; parados alternam mais devagar)
+      ctx.fillStyle='rgba(0,0,0,.16)';
+      ctx.beginPath(); ctx.ellipse(en.wx, GROUND+5, en.w*0.45, 5, 0,0,Math.PI*2); ctx.fill();
+      const frame = Math.floor(t/(en.move?8:20))%2;
+      drawTwoFrame(im, frame, en.wx, GROUND, Math.max(en.h, 40), en.dir>0, flash?0.5:1, en.kindS);
+      return;
+    }
+    if(flash) ctx.globalAlpha = 0.5;
     drawObstacle({ x: en.wx, y: GROUND, w: en.w, h: en.h, kind: en.kindS });
     ctx.globalAlpha = 1;
   }
