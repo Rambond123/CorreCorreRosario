@@ -85,7 +85,7 @@ Legenda de esforço: **P** (até 1h), **M** (uma sessão), **G** (várias sessõ
 | ID | Item | Esforço |
 |---|---|---|
 | CCR-20 | **Fases em dados** (JSON com posições de inimigos/obstáculos/power-ups) em vez de listas fixas no código — pré-requisito para novas fases e editor | M |
-| CCR-21 | **Fase 2 realmente diferente**: layout próprio da volta pra casa (hoje é a mesma fase com labels trocados) | M |
+| ~~CCR-21~~ ◐ | **Fase 2 diferente**: visual próprio feito na v0.14 — orla do Guaíba no pôr do sol com Laçador e Beira-Rio (arte do Lovable); falta layout/dificuldade próprios | M |
 | CCR-22 | **Curva de dificuldade**: mais inimigos e patrulha mais rápida perto do fim; Fase 2 mais difícil que a 1 | P |
 | CCR-23 | **Moedas/figurinhas colecionáveis** pelo caminho (pontuação que faz sentido pras medalhas + motivo para explorar) | M |
 | ~~CCR-24~~ ◐ | **Vida extra** feita (coração, v0.12); falta o **checkpoint** no meio da fase | P |

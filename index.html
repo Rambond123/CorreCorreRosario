@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.12</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.14</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -504,6 +504,19 @@
   const ENEMY_KINDS = ['cachorro','patinete','drone','barata','rato','aranha','morcego','unicornio','coelho','ursinho','gatinho','cupcake','fadinha'];
   const BOSS_KINDS  = ['adolescente','frangorato','ursao'];
   const enemySprites = {}, bossSprites = {};
+  const scenery = {};
+  for(const k of ['orla','lacador','beirario','chafariz']){
+    const im = new Image(); im.onload=()=>{ scenery[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/'+k+'.png';
+  }
+  // desenha uma imagem de cenário com a BASE em (x, baseY) e altura hpx (coords de tela)
+  function drawScenery(k, x, baseY, hpx, alpha){
+    const im = scenery[k]; if(!im) return false;
+    const scl = hpx/im.naturalHeight, dw = im.naturalWidth*scl;
+    if(alpha!=null) ctx.globalAlpha = alpha;
+    ctx.drawImage(im, x - dw/2, baseY - hpx, dw, hpx);
+    ctx.globalAlpha = 1;
+    return true;
+  }
   // folhas que saíram viradas para a DIREITA no gerador (o padrão dos inimigos é esquerda)
   const FACES_RIGHT = { gatinho:true };
   // mede o conteúdo real (caixa dos pixels opacos) de cada quadro, para escalar pelo bicho e não pela célula
@@ -1266,18 +1279,60 @@
   }
 
 
-  function enterSewerLevel(){
+  // ---------- CINEMÁTICA DO BUEIRO ----------
+  // Vito: afunda, a tela escurece e ele despenca devagar por um poço de tijolos.
+  // Maria: duas fadinhas descem, pegam-na pelas mãos e sobem juntas para as nuvens.
+  let trans = null;
+  function startRouteTransition(){
     const goSky = (frog.char === 'maria');
-    const savedFrames = runFrames, savedHearts = frog.hearts;
+    trans = { t: 0, sky: goSky,
+              fairies: goSky ? [ { x: frog.x - 220, y: -70, bob: 0 },
+                                 { x: frog.x + 240, y: -110, bob: Math.PI } ] : null };
+    frog.moving = false; frog.crouch = false; frog.vy = 0; frog.wave = 0;
+    keys.left = false; keys.right = false; shootHold = false;
+    gameState = 'transition';
+    floatTxt = { x: frog.x, y: GROUND - frog.h - 14, t: 60, txt: goSky ? '✨ AS FADINHAS! ✨' : 'OPA, O BUEIRO!' };
+  }
+  function finishRouteTransition(){
+    const goSky = trans.sky;
+    const savedFrames = runFrames, savedHearts = frog.hearts, savedShield = frog.shield, savedFast = frog.fast;
     route = goSky ? 'sky' : 'sewer';
     keepRoute = true;            // reset() mantém a rota escolhida
     reset();
     runFrames = savedFrames;     // não zera o cronômetro da fase
-    frog.hearts = savedHearts;   // mantém a vida atual (não "cura" ao cair)
+    frog.hearts = savedHearts;   // mantém a vida (não "cura" ao cair)
+    frog.shield = savedShield; frog.fast = savedFast;
     updateHearts();
+    trans = null;
     gameState = 'play';
     floatTxt = { x: frog.x, y: GROUND - frog.h - 10, t: 80,
-                 txt: goSky ? 'A FADA TE LEVOU! ✨' : 'CAIU NO ESGOTO!' };
+                 txt: goSky ? 'NAS NUVENS! ✨' : 'NO ESGOTO!' };
+  }
+  function updateTransition(){
+    t++; trans.t++;
+    const tt = trans.t;
+    if(floatTxt){ floatTxt.y -= 0.8; if(--floatTxt.t<=0) floatTxt=null; }
+    if(trans.sky){
+      // 1) as fadinhas voam até os lados da Maria; 2) sobem todas juntas
+      const tgt = [ { x: frog.x - 42, y: frog.y - frog.h*0.72 },
+                    { x: frog.x + 42, y: frog.y - frog.h*0.86 } ];
+      trans.fairies.forEach((f,i)=>{
+        f.bob += 0.18;
+        f.x += (tgt[i].x - f.x)*0.07;
+        f.y += (tgt[i].y - f.y)*0.07 + Math.sin(f.bob)*0.6;
+      });
+      if(tt > 70){
+        const lift = Math.min(5.5, 0.8 + (tt-70)*0.07);
+        frog.y -= lift;
+        frog.x += Math.sin(tt*0.06)*0.7;             // balançinho na subida
+        if(tt % 5 === 0) burst(frog.x + (Math.random()*70-35), frog.y - Math.random()*40, 3, Math.random()<0.5 ? '#ffd6f2' : '#fff3b0');
+      }
+      if(frog.y < -180) finishRouteTransition();
+    } else {
+      // Vito: afunda no bueiro (0-46), tela escurece, e cai devagar pelo poço (até ~200)
+      if(tt <= 46){ frog.y += 1.5; }
+      if(tt >= 208) finishRouteTransition();
+    }
   }
 
   function update(){
@@ -1315,7 +1370,7 @@
       const half = frog.w*0.30;
       if(frog.x > manhole.wx - manhole.w*0.5 + half && frog.x < manhole.wx + manhole.w*0.5 - half){
         manhole.open = false;
-        enterSewerLevel();
+        startRouteTransition();
         return;
       }
     }
@@ -1547,18 +1602,45 @@
     } else if(route==='sky'){
       drawSkyScene();
     } else {
-      // céu de Porto Alegre
-      const sky = ctx.createLinearGradient(0,0,0,H);
-      sky.addColorStop(0,'#8fbfe6');
-      sky.addColorStop(.55,'#c6e0ef');
-      sky.addColorStop(1,'#f1e7d4');
-      ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
-      ctx.fillStyle='rgba(255,250,228,.9)';
-      ctx.beginPath(); ctx.arc(W*0.82, 88, 44, 0, Math.PI*2); ctx.fill();
-      drawMonument(cam*0.05);
-      drawTrees(cam*0.22);
-      drawBuildings(cam*0.42);
-      drawStreetCam();
+      const sunset = (phase === 2) && scenery.orla;
+      if(sunset){
+        // ---- Fase 2: volta pra casa pela ORLA DO GUAÍBA no pôr do sol ----
+        const im = scenery.orla;
+        const scl = H / im.naturalHeight, tw = im.naturalWidth * scl;
+        const off = (cam * 0.12) % tw;
+        for(let x = -off; x < W; x += tw){ ctx.drawImage(im, x, 0, tw + 1, H); }
+        // véu quente para casar o fundo com o resto do desenho
+        ctx.fillStyle = 'rgba(255,150,80,.08)'; ctx.fillRect(0,0,W,H);
+        // monumentos da orla passando (parallax médio, coords de tela)
+        const mid = cam * 0.5;
+        const spots = [ ['lacador', 900, 250], ['beirario', 2100, 190], ['lacador', 3300, 250] ];
+        for(const [k, wx, hh] of spots){
+          const sx = wx - mid;
+          if(sx > -300 && sx < W + 300) drawScenery(k, sx, GROUND + 6, hh, 0.95);
+        }
+        // silhueta de gramado da orla por trás da calçada
+        ctx.fillStyle = '#3f6b46'; ctx.fillRect(0, GROUND - 8, W, 14);
+        drawStreetCam();
+      } else {
+        // ---- Fase 1: Bom Fim / Redenção ----
+        const sky = ctx.createLinearGradient(0,0,0,H);
+        sky.addColorStop(0,'#8fbfe6');
+        sky.addColorStop(.55,'#c6e0ef');
+        sky.addColorStop(1,'#f1e7d4');
+        ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
+        ctx.fillStyle='rgba(255,250,228,.9)';
+        ctx.beginPath(); ctx.arc(W*0.82, 88, 44, 0, Math.PI*2); ctx.fill();
+        drawMonument(cam*0.05);
+        drawTrees(cam*0.22);
+        // chafariz da Redenção passando entre as árvores e os prédios
+        const mid = cam * 0.32;
+        for(const wx of [700, 2300]){
+          const sx = wx - mid;
+          if(sx > -200 && sx < W + 200) drawScenery('chafariz', sx, GROUND + 2, 150, 0.9);
+        }
+        drawBuildings(cam*0.42);
+        drawStreetCam();
+      }
     }
 
     // ---- atores do mundo (deslocados pela câmera) ----
@@ -1572,6 +1654,15 @@
     if(manhole && manhole.open) drawManhole({ x: manhole.wx, w: manhole.w });
     for(const o of obstacles) drawObstacle({ x:o.wx, y:GROUND, w:o.w, h:o.h, kind:o.kindS });
     for(const en of enemies) drawEnemy(en);
+    if(gameState==='transition' && trans && trans.sky && trans.fairies){
+      const fim = enemySprites['fadinha'];
+      for(const f of trans.fairies){
+        // brilho atrás da fadinha
+        ctx.fillStyle='rgba(255,214,90,.18)';
+        ctx.beginPath(); ctx.arc(f.x, f.y, 30, 0, Math.PI*2); ctx.fill();
+        if(fim) drawTwoFrame(fim, Math.floor(t/5)%2, f.x, f.y + 26, 54, f.x < frog.x, null, 'fadinha');
+      }
+    }
     for(const d of drones){ if(d.dead) continue;
       const dd = { x:d.wx, y:d.y, w:d.w, bob:d.bob, lilac:d.lilac };
       const ak = d.bat ? 'morcego' : d.fairy ? 'fadinha' : 'drone';
@@ -1639,6 +1730,40 @@
     }
     ctx.restore();
 
+    if(gameState==='transition' && trans && !trans.sky){
+      const tt = trans.t;
+      const fade = Math.min(1, Math.max(0, (tt-28)/32));
+      if(fade > 0){ ctx.fillStyle = 'rgba(8,10,14,'+(0.96*fade).toFixed(3)+')'; ctx.fillRect(0,0,W,H); }
+      if(tt > 62 && tt < 206){
+        const a = Math.min(1, (tt-62)/14);
+        ctx.save(); ctx.globalAlpha = a;
+        // poço: paredes de tijolo dos lados, tudo rolando para CIMA (sensação de queda)
+        const xl = W*0.30, xr = W*0.70, off = (tt*7) % 46;
+        ctx.fillStyle = '#241a12'; ctx.fillRect(xl, 0, xr-xl, H);
+        ctx.fillStyle = '#3a2a1c'; ctx.fillRect(xl-46, 0, 46, H); ctx.fillRect(xr, 0, 46, H);
+        ctx.strokeStyle = 'rgba(150,118,90,.45)'; ctx.lineWidth = 3;
+        for(let y = -off; y < H+46; y += 46){
+          ctx.beginPath(); ctx.moveTo(xl-46, y); ctx.lineTo(xl, y); ctx.moveTo(xr, y); ctx.lineTo(xr+46, y); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(xl-23, y); ctx.lineTo(xl-23, y+46); ctx.moveTo(xr+23, y); ctx.lineTo(xr+23, y+46); ctx.stroke();
+        }
+        // risquinhos de velocidade subindo
+        ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 2;
+        for(let i=0;i<7;i++){
+          const sx = xl + 24 + ((i*97) % (xr-xl-48));
+          const sy = (H + 60) - ((tt*11 + i*140) % (H + 120));
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, sy+26); ctx.stroke();
+        }
+        // o Vito caindo devagar, balançando
+        const wob = Math.sin(tt*0.11)*16;
+        const fy = Math.min(H*0.76, H*0.26 + (tt-62)*1.15);
+        const im = sprites[frog.char];
+        if(im) drawSprite(ctx, im, 'jump', W/2 + wob, fy, 112, wob < 0);
+        else drawCharacter(ctx, W/2 + wob, fy, 1.1, frog.char, {moving:false, onGround:false, t:tt});
+        ctx.fillStyle = '#ffd24a'; ctx.font = "bold 26px 'Baloo 2', sans-serif"; ctx.textAlign='center';
+        ctx.fillText('IIIIIIIH!', W/2 + wob*0.5, fy - 130); ctx.textAlign='left';
+        ctx.restore();
+      }
+    }
     if(gameState==='play' || gameState==='boss'){
       let hy = 96;
       const chip = (txt, cor) => {
@@ -2791,6 +2916,7 @@
     if(gameState === 'play') update();
     else if(gameState === 'boss') updateBoss();
     else if(gameState === 'arriving') updateArriving();
+    else if(gameState === 'transition') updateTransition();
     else { t++; }
   }
   const STEP_MS = 1000/60;
