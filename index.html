@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.18</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.19</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -1660,7 +1660,8 @@
         ctx.fillStyle = '#3f6b46'; ctx.fillRect(0, GROUND - 10, W, 20);
         if(props.araucaria) drawPropRow(['araucaria','poste','arvore1','poste'], 0.5, 640, 200, GROUND - 4);
         // monumentos da orla passando, apoiados no gramado
-        const spots = [ ['lacador', 1100, 230], ['beirario', 2700, 140], ['lacador', 4400, 230] ];
+        // com parallax 0.5, wx = 0.5*(posiçãoDaCriança-412) + 450 põe o monumento no centro da tela naquele momento
+        const spots = [ ['lacador', 694, 230], ['beirario', 1594, 150], ['lacador', 2444, 230] ];
         for(const [k, wx, hh] of spots){
           const sx = wx - mid;
           if(sx > -320 && sx < W + 320) drawScenery(k, sx, GROUND - 6, hh, 1);
@@ -1991,12 +1992,12 @@
       }
     }
     cloud(430,90,1.0,true); cloud(760,150,0.8,true); cloud(980,80,0.7,false); cloud(250,170,0.7,false);
-    // chão de nuvens fofo
+    // chão de nuvens fofo (bolhas baixas, sem cobrir os pés dos bichos)
     ctx.fillStyle='#eaf4ff'; ctx.fillRect(0,GROUND+18,W,H-GROUND-18);
     ctx.fillStyle='#fff';
     const off=(cam*0.5)%46;
-    for(let x=-off-10; x<W+40; x+=46){ ctx.beginPath(); ctx.arc(x+20,GROUND+16,30,0,Math.PI*2); ctx.fill(); }
-    ctx.fillStyle='#f4f9ff'; ctx.fillRect(0,GROUND+26,W,H-GROUND-26);
+    for(let x=-off-10; x<W+40; x+=46){ ctx.beginPath(); ctx.arc(x+20,GROUND+24,20,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle='#f4f9ff'; ctx.fillRect(0,GROUND+30,W,H-GROUND-30);
     // chegada: corda colorida
     if(gameState==='__never__'){ drawSkyExit(school.x); }
   }
@@ -2069,8 +2070,8 @@
     ctx.fillStyle='#eaf4ff'; ctx.fillRect(0,GROUND+18,W,H-GROUND-18);
     ctx.fillStyle='#fff';
     const off=(cam*0.5)%46;
-    for(let x=-off-10; x<W+40; x+=46){ ctx.beginPath(); ctx.arc(x+20,GROUND+16,30,0,Math.PI*2); ctx.fill(); }
-    ctx.fillStyle='#f4f9ff'; ctx.fillRect(0,GROUND+26,W,H-GROUND-26);
+    for(let x=-off-10; x<W+40; x+=46){ ctx.beginPath(); ctx.arc(x+20,GROUND+24,20,0,Math.PI*2); ctx.fill(); }
+    ctx.fillStyle='#f4f9ff'; ctx.fillRect(0,GROUND+30,W,H-GROUND-30);
   }
   function drawSewerScene(){
     // fundo (mais claro para os bichos aparecerem)
