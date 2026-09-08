@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.22</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.23</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -371,7 +371,7 @@
     // obstáculos parados da rua (desviar/pular): lata, banco, banca — sorteados, evitando o bueiro
     obstacles = [];
     if(route==='street'){
-      const useNew = obSprites.conteiner && obSprites.dorminhoco;
+      const useNew = obSprites.conteiner && obSprites.pilhalixo;
       const od = useNew ? OB_DIMS : { lata:[41,58], banco:[101,41], banca:[115,67] };
       const names = Object.keys(od);
       for(const wx of randSpots(820, LEVEL_W - 700, 340, 620)){
@@ -509,7 +509,7 @@
   const props = {};
   const PROP_NAMES = ['predio1','predio2','predio3','predio4','banca','arvore1','arvore2','arvore3','araucaria','poste'];
   // obstáculos de calçada em sprite (colisão = OB_DIMS; desenho = imagem com base no chão)
-  const OB_DIMS = { dorminhoco:[112,38], conteiner:[88,78], brique:[112,72], bancopraca:[98,46],
+  const OB_DIMS = { pilhalixo:[104,56], conteiner:[88,78], brique:[112,72], bancopraca:[98,46],
                     orelhao:[46,88], correio:[40,62], cone:[34,48], floreira:[84,44],
                     tombado:[92,30], cavalete:[68,56] };
   const obSprites = {};
@@ -1692,7 +1692,25 @@
           ctx.lineTo(W, GROUND); ctx.closePath(); ctx.fill();
           ctx.fillStyle = 'rgba(128,160,132,.35)'; ctx.fillRect(0, hy, W, GROUND - hy);
           for(let k = Math.floor(far/period)-1; k <= Math.floor((far+W)/period)+1; k++){
-            const sx = k*period - far + 290;
+            const kx = k*period - far;
+            // árvores do parque, meio apagadas como o monumento
+            const tset = [ ['arvore1', 620, 96], ['araucaria', 900, 118], ['arvore3', 1190, 92], ['arvore2', 1560, 100] ];
+            for(const [tk, off, th] of tset){
+              const tx = kx + off;
+              if(tx > -160 && tx < W + 160){
+                if(props[tk]){
+                  const im = props[tk], scl = th/im.naturalHeight, dw = im.naturalWidth*scl;
+                  ctx.globalAlpha = 0.55;
+                  ctx.drawImage(im, tx - dw/2, hy + 6 - th, dw, th);
+                  ctx.globalAlpha = 1;
+                } else {
+                  ctx.fillStyle = 'rgba(110,150,115,.5)';
+                  ctx.beginPath(); ctx.arc(tx, hy - th*0.45, th*0.42, 0, Math.PI*2); ctx.fill();
+                  ctx.fillRect(tx - 4, hy - th*0.3, 8, th*0.36);
+                }
+              }
+            }
+            const sx = kx + 290;
             if(sx > -260 && sx < W + 260) drawScenery('expedicionario', sx, hy + 4, 165, 0.75);
           }
         } else drawMonument(cam*0.05);
@@ -1731,7 +1749,7 @@
       if(oim){
         ctx.fillStyle='rgba(0,0,0,.15)';
         ctx.beginPath(); ctx.ellipse(o.wx, GROUND+5, o.w*0.5, 5, 0,0,Math.PI*2); ctx.fill();
-        // desenha com a ALTURA de colisão (largura proporcional; dorminhoco/tombado esticam na largura)
+        // desenha com a ALTURA de colisão (largura proporcional; pilhalixo/tombado esticam na largura)
         const scl = (o.h + 6)/oim.naturalHeight;
         let dw = oim.naturalWidth*scl, dh = o.h + 6;
         if(dw < o.w){ dw = o.w + 8; dh = oim.naturalHeight * (dw/oim.naturalWidth); }
