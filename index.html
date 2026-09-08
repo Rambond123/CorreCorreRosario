@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.19</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.20</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -513,6 +513,8 @@
                     orelhao:[46,88], correio:[40,62], cone:[34,48], floreira:[84,44],
                     tombado:[92,30], cavalete:[68,56] };
   const obSprites = {};
+  let pipocaSheet = null;
+  { const im=new Image(); im.onload=()=>{ pipocaSheet=im; }; im.onerror=()=>{}; im.src='sprites/powerups/pipoca.png'; }
   for(const k of Object.keys(OB_DIMS)){ const im=new Image(); im.onload=()=>{ obSprites[k]=im; }; im.onerror=()=>{}; im.src='sprites/obstacles/'+k+'.png'; }
   for(const k of PROP_NAMES){ const im=new Image(); im.onload=()=>{ props[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/props/'+k+'.png'; }
   // escala própria de cada adereço em relação à altura-base da fileira
@@ -1868,6 +1870,16 @@
     const yy = pu.y + Math.sin(pu.bob)*5;
     ctx.save();
     ctx.translate(pu.x, yy);
+    if((!pu.kind || pu.kind === 'pipoca') && pipocaSheet){
+      // halo + mascote sacudindo os bracinhos
+      ctx.fillStyle='rgba(255,210,74,.28)';
+      ctx.beginPath(); ctx.arc(0,0, 27 + Math.sin(pu.bob)*2, 0, Math.PI*2); ctx.fill();
+      const cw = pipocaSheet.naturalWidth/2, ch = pipocaSheet.naturalHeight;
+      const frame = Math.floor(t/9)%2, hh = 52, dw = cw*(hh/ch);
+      ctx.drawImage(pipocaSheet, frame*cw, 0, cw, ch, -dw/2, -hh/2, dw, hh);
+      ctx.restore();
+      return;
+    }
     if(pu.kind && pu.kind !== 'pipoca'){
       // halo na cor do power-up + desenho próprio
       const halo = { guarana:'rgba(79,208,106,.30)', chiclete:'rgba(255,154,213,.32)', coracao:'rgba(255,106,122,.30)' }[pu.kind];

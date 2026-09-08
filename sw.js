@@ -1,9 +1,9 @@
 // Service worker do Corre Corre Rosário.
 // Estratégia: REDE PRIMEIRO para tudo (com internet, sempre a versão nova);
 // o cache é só a reserva para jogar offline. Mude o CACHE a cada versão.
-const CACHE = 'ccr-v0.19';
+const CACHE = 'ccr-v0.20';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png',
-  './sprites/vito.png', './sprites/maria.png',
+  './sprites/vito.png', './sprites/maria.png', './sprites/powerups/pipoca.png',
   ...['cachorro','patinete','drone','barata','rato','aranha','morcego','unicornio','coelho','ursinho','gatinho','cupcake','fadinha'].map(k=>'./sprites/enemies/'+k+'.png'),
   ...['adolescente','frangorato','ursao'].map(k=>'./sprites/bosses/'+k+'.png'),
   ...['orla','esgoto','ceu','lacador','beirario','chafariz','rosario','expedicionario'].map(k=>'./sprites/scenery/'+k+'.png'),
