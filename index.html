@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.16</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.17</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -523,7 +523,7 @@
       ctx.drawImage(im, sx - dw/2, baseY - hh, dw, hh);
     }
   }
-  for(const k of ['orla','esgoto','ceu','lacador','beirario','chafariz','rosario']){
+  for(const k of ['orla','esgoto','ceu','lacador','beirario','chafariz','rosario','expedicionario']){
     const im = new Image(); im.onload=()=>{ scenery[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/'+k+'.png';
   }
   // desenha uma imagem de cenário com a BASE em (x, baseY) e altura hpx (coords de tela)
@@ -666,7 +666,12 @@
   window.addEventListener('keydown', e=>{
     if(e.code==='KeyP' || e.code==='Escape'){ e.preventDefault(); if(gameState==='paused') resumeGame(); else pauseGame(); }
   });
+  // instalado como app (tela cheia nativa)? então nunca pede fullscreen — evita o aviso do Chrome
+  const isStandalone = (window.matchMedia && (matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches)) || window.navigator.standalone === true;
+  let fsAsked = false;
   function goFullscreen(){
+    if(isStandalone || fsAsked) return;
+    fsAsked = true;
     if(document.fullscreenElement || document.webkitFullscreenElement) return;
     const el = document.documentElement;
     const req = el.requestFullscreen || el.webkitRequestFullscreen;
@@ -1663,7 +1668,13 @@
         ctx.fillStyle = sky; ctx.fillRect(0,0,W,H);
         ctx.fillStyle='rgba(255,250,228,.9)';
         ctx.beginPath(); ctx.arc(W*0.82, 88, 44, 0, Math.PI*2); ctx.fill();
-        drawMonument(cam*0.05);
+        if(scenery.expedicionario){
+          const far = cam * 0.05, period = 1900;
+          for(let k = Math.floor(far/period)-1; k <= Math.floor((far+W)/period)+1; k++){
+            const sx = k*period - far + 290;
+            if(sx > -260 && sx < W + 260) drawScenery('expedicionario', sx, GROUND - 130, 190, 0.55);
+          }
+        } else drawMonument(cam*0.05);
         if(props.arvore1) drawPropRow(['arvore1','arvore2','araucaria','arvore1','arvore3'], 0.22, 190, 165, GROUND + 4);
         else drawTrees(cam*0.22);
         // chafariz da Redenção passando entre as árvores e os prédios
@@ -1691,9 +1702,6 @@
       const hh = 400, scl = hh/im.naturalHeight, dw = im.naturalWidth*scl;
       const left = LEVEL_W - SCHOOL_W - 80;
       ctx.drawImage(im, left + SCHOOL_W/2 - dw/2, GROUND - hh, dw, hh);
-      // nome na placa
-      ctx.fillStyle='#ffd24a'; ctx.font="bold 11px 'Baloo 2', sans-serif"; ctx.textAlign='center';
-      ctx.fillText('MARISTA ROSÁRIO', left + SCHOOL_W/2, GROUND - hh*0.328); ctx.textAlign='left';
     }
     else                     drawSchool(LEVEL_W - SCHOOL_W - 80);
     if(manhole && manhole.open) drawManhole({ x: manhole.wx, w: manhole.w });
