@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.26</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.27</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -745,6 +745,7 @@
   function updateBoss(){
     t++;
     if(shootHold) shoot();
+    updatePowerups();
     const WALK = 4.2 * (frog.fast > 0 ? 1.45 : 1);
     if(frog.fast > 0) frog.fast--;
     // movimento livre da criança (agachado = parado)
@@ -1367,6 +1368,38 @@
     }
   }
 
+  function updatePowerups(){
+    // power-up pipoca (tiro duplo): coleta por proximidade (no alto, exige pulo)
+    if(twin > 0) twin--;
+    for(const pu of powerups){
+      pu.bob += 0.08;
+      if(!pu.taken){
+        const dx = frog.x - pu.wx, dy = (frog.y - frog.h*0.5) - pu.y;
+        if(Math.abs(dx) < 42 && Math.abs(dy) < 52){
+          pu.taken = true;
+          if(pu.kind === 'guarana'){
+            frog.fast = 420;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'GUARANÁ! ⚡' };
+            burst(pu.wx, pu.y, 18, '#4fd06a');
+          } else if(pu.kind === 'chiclete'){
+            frog.shield = 1;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'BOLHA DE CHICLETE!' };
+            burst(pu.wx, pu.y, 18, '#ff9ad5');
+          } else if(pu.kind === 'coracao'){
+            if(frog.hearts < 5){ frog.hearts++; updateHearts(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: '+1 ❤️' }; }
+            else { bonus += 25; recalcScore(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'CHEIO! +25 pts' }; }
+            burst(pu.wx, pu.y, 18, '#ff6a7a');
+          } else {
+            twin = 360;
+            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'TIRO DUPLO!' };
+            burst(pu.wx, pu.y, 18, '#ffd24a');
+          }
+        }
+      }
+    }
+    powerups = powerups.filter(pu => !pu.taken);
+  }
+
   function update(){
     t++;
     if(shootHold) shoot();
@@ -1556,35 +1589,7 @@
     drones = drones.filter(d => !d.dead);
     bullets = bullets.filter(b => !b.dead && b.x > cam-60 && b.x < cam+W+60 && b.y > -40 && b.y < H+40);
 
-    // power-up pipoca (tiro duplo): coleta por proximidade (no alto, exige pulo)
-    if(twin > 0) twin--;
-    for(const pu of powerups){
-      pu.bob += 0.08;
-      if(!pu.taken){
-        const dx = frog.x - pu.wx, dy = (frog.y - frog.h*0.5) - pu.y;
-        if(Math.abs(dx) < 42 && Math.abs(dy) < 52){
-          pu.taken = true;
-          if(pu.kind === 'guarana'){
-            frog.fast = 420;
-            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'GUARANÁ! ⚡' };
-            burst(pu.wx, pu.y, 18, '#4fd06a');
-          } else if(pu.kind === 'chiclete'){
-            frog.shield = 1;
-            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'BOLHA DE CHICLETE!' };
-            burst(pu.wx, pu.y, 18, '#ff9ad5');
-          } else if(pu.kind === 'coracao'){
-            if(frog.hearts < 5){ frog.hearts++; updateHearts(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: '+1 ❤️' }; }
-            else { bonus += 25; recalcScore(); floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'CHEIO! +25 pts' }; }
-            burst(pu.wx, pu.y, 18, '#ff6a7a');
-          } else {
-            twin = 360;
-            floatTxt = { x: pu.wx, y: pu.y - 22, t: 70, txt: 'TIRO DUPLO!' };
-            burst(pu.wx, pu.y, 18, '#ffd24a');
-          }
-        }
-      }
-    }
-    powerups = powerups.filter(pu => !pu.taken);
+    updatePowerups();
 
     // partículas
     for(const p of particles){ p.x += p.vx; p.y += p.vy; p.vy += 0.35; p.life--; }
