@@ -213,7 +213,7 @@
     <div class="title">CORRE CORRE <span>ROSÁRIO</span></div>
     <div class="sub" style="font-size:19px">Ajude as crianças a chegar ao Rosário</div>
     <button class="btn" id="startBtn">Escolher criança 🎒</button>
-    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.17</div>
+    <div style="position:absolute;bottom:8px;right:14px;font-size:11px;opacity:.55;font-family:'Baloo 2','Trebuchet MS',sans-serif">v0.18</div>
     <button class="btn" id="fsBtn" style="font-size:15px;padding:8px 20px;background:rgba(255,255,255,.14);color:#fff;box-shadow:none">Tela cheia ⛶</button>
   </div>
 
@@ -371,7 +371,8 @@
     // obstáculos parados da rua (desviar/pular): lata, banco, banca — sorteados, evitando o bueiro
     obstacles = [];
     if(route==='street'){
-      const od = { lata:[41,58], banco:[101,41], banca:[115,67] };
+      const useNew = obSprites.conteiner && obSprites.dorminhoco;
+      const od = useNew ? OB_DIMS : { lata:[41,58], banco:[101,41], banca:[115,67] };
       const names = Object.keys(od);
       for(const wx of randSpots(820, LEVEL_W - 700, 340, 620)){
         if(manhole && Math.abs(wx - manhole.wx) < 180) continue;          // não tampa o bueiro
@@ -507,6 +508,12 @@
   const scenery = {};
   const props = {};
   const PROP_NAMES = ['predio1','predio2','predio3','predio4','banca','arvore1','arvore2','arvore3','araucaria','poste'];
+  // obstáculos de calçada em sprite (colisão = OB_DIMS; desenho = imagem com base no chão)
+  const OB_DIMS = { dorminhoco:[112,38], conteiner:[88,78], brique:[112,72], bancopraca:[98,46],
+                    orelhao:[46,88], correio:[40,62], cone:[34,48], floreira:[84,44],
+                    tombado:[92,30], cavalete:[68,56] };
+  const obSprites = {};
+  for(const k of Object.keys(OB_DIMS)){ const im=new Image(); im.onload=()=>{ obSprites[k]=im; }; im.onerror=()=>{}; im.src='sprites/obstacles/'+k+'.png'; }
   for(const k of PROP_NAMES){ const im=new Image(); im.onload=()=>{ props[k]=im; }; im.onerror=()=>{}; im.src='sprites/scenery/props/'+k+'.png'; }
   // escala própria de cada adereço em relação à altura-base da fileira
   const PROP_SCALE = { poste: 0.48, banca: 0.60, arvore3: 0.85, araucaria: 1.1 };
@@ -1670,9 +1677,20 @@
         ctx.beginPath(); ctx.arc(W*0.82, 88, 44, 0, Math.PI*2); ctx.fill();
         if(scenery.expedicionario){
           const far = cam * 0.05, period = 1900;
+          // chão distante do parque: faixa esverdeada com topo ondulado (o monumento pisa nela)
+          const hy = GROUND - 128;
+          ctx.fillStyle = 'rgba(148,178,150,.45)';
+          ctx.beginPath();
+          ctx.moveTo(0, GROUND);
+          const bOff = far % 120;
+          for(let x = -bOff; x <= W + 120; x += 120){
+            ctx.quadraticCurveTo(x + 60, hy - 14, x + 120, hy);
+          }
+          ctx.lineTo(W, GROUND); ctx.closePath(); ctx.fill();
+          ctx.fillStyle = 'rgba(128,160,132,.35)'; ctx.fillRect(0, hy, W, GROUND - hy);
           for(let k = Math.floor(far/period)-1; k <= Math.floor((far+W)/period)+1; k++){
             const sx = k*period - far + 290;
-            if(sx > -260 && sx < W + 260) drawScenery('expedicionario', sx, GROUND - 130, 190, 0.55);
+            if(sx > -260 && sx < W + 260) drawScenery('expedicionario', sx, hy + 4, 165, 0.75);
           }
         } else drawMonument(cam*0.05);
         if(props.arvore1) drawPropRow(['arvore1','arvore2','araucaria','arvore1','arvore3'], 0.22, 190, 165, GROUND + 4);
@@ -1705,7 +1723,19 @@
     }
     else                     drawSchool(LEVEL_W - SCHOOL_W - 80);
     if(manhole && manhole.open) drawManhole({ x: manhole.wx, w: manhole.w });
-    for(const o of obstacles) drawObstacle({ x:o.wx, y:GROUND, w:o.w, h:o.h, kind:o.kindS });
+    for(const o of obstacles){
+      const oim = obSprites[o.kindS];
+      if(oim){
+        ctx.fillStyle='rgba(0,0,0,.15)';
+        ctx.beginPath(); ctx.ellipse(o.wx, GROUND+5, o.w*0.5, 5, 0,0,Math.PI*2); ctx.fill();
+        // desenha com a ALTURA de colisão (largura proporcional; dorminhoco/tombado esticam na largura)
+        const scl = (o.h + 6)/oim.naturalHeight;
+        let dw = oim.naturalWidth*scl, dh = o.h + 6;
+        if(dw < o.w){ dw = o.w + 8; dh = oim.naturalHeight * (dw/oim.naturalWidth); }
+        ctx.drawImage(oim, o.wx - dw/2, GROUND - dh, dw, dh);
+      }
+      else drawObstacle({ x:o.wx, y:GROUND, w:o.w, h:o.h, kind:o.kindS });
+    }
     for(const en of enemies) drawEnemy(en);
     if(gameState==='transition' && trans && trans.sky && trans.fairies){
       const fim = enemySprites['fadinha'];
